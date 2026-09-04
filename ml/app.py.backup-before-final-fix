@@ -1,0 +1,273 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from typing import List, Optional
+import joblib
+import numpy as np
+from pathlib import Path
+from datetime import datetime, timezone
+
+app = FastAPI(
+    title="GiriDrishti AI ML Service",
+    version="2.0.0"
+)
+
+MODEL_PATH = Path(__file__).resolve().parent / "model.joblib"
+
+model = None
+
+try:
+    model = joblib.load(MODEL_PATH)
+    print("GiriDrishti AI model loaded")
+    print(
+        "Expected features:",
+        getattr(model, "n_features_in_", "unknown")
+    )
+except Exception as error:
+    print("ML model loading failed:", error)
+
+
+class Features(BaseModel):
+    rainfall: float = Field(ge=0)
+    soilMoisture: float = Field(ge=0, le=100)
+    slope: float = Field(ge=0, le=90)
+    elevation: float
+    historicalRisk: float = Field(ge=0, le=1)
+
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class BatchRequest(BaseModel):
+    items: List[Features]
+
+
+def utc_now():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def classify(score: float):
+    if score >= 80:
+        return "CRITICAL"
+
+    if score >= 60:
+        return "HIGH"
+
+    if score >= 35:
+        return "MODERATE"
+
+    return "LOW"
+
+
+def prepare_features(features: Features):
+    """
+    Existing RandomForest model was trained with
+    five features:
+
+    rainfall
+    soilMoisture
+    slope
+    elevation
+    historicalRisk
+
+    Latitude/longitude are accepted by the API but are
+    only passed to the model if a future model was
+    trained with seven features.
+    """
+
+    expected = getattr(
+        model,
+        "n_features_in_",
+        5
+    )
+
+    five = [
+        features.rainfall,
+        features.soilMoisture,
+        features.slope,
+        features.elevation,
+        features.historicalRisk
+    ]
+
+    seven = five + [
+        features.latitude
+        if features.latitude is not None
+        else 0.0,
+
+        features.longitude
+        if features.longitude is not None
+        else 0.0
+    ]
+
+    if expected == 7:
+        return seven
+
+    return five
+
+
+def predict_one(features: Features):
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="AI model is not loaded"
+        )
+
+    values = prepare_features(features)
+
+    X = np.asarray(
+        [values],
+        dtype=float
+    )
+
+    if not np.all(np.isfinite(X)):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid numeric features"
+        )
+
+    try:
+        probability = None
+
+        if hasattr(
+            model,
+            "predict_proba"
+        ):
+            probabilities = (
+                model.predict_proba(X)[0]
+            )
+
+            classes = list(
+                getattr(
+                    model,
+                    "classes_",
+                    []
+                )
+            )
+
+            if 1 in classes:
+                index = classes.index(1)
+                probability = float(
+                    probabilities[index]
+                )
+            else:
+                probability = float(
+                    np.max(probabilities)
+                )
+
+        else:
+            prediction = model.predict(X)[0]
+
+            probability = float(
+                prediction
+            )
+
+        probability = max(
+            0.0,
+            min(
+                probability,
+                1.0
+            )
+        )
+
+        risk_score = round(
+            probability * 100,
+            2
+        )
+
+        return {
+            "probability": round(
+                probability,
+                6
+            ),
+
+            "aiScore": risk_score,
+
+            "riskScore": risk_score,
+
+            "riskLevel":
+                classify(
+                    risk_score
+                ),
+
+            "modelLoaded":
+                True,
+
+            "modelFeatures":
+                getattr(
+                    model,
+                    "n_features_in_",
+                    None
+                ),
+
+            "modelSource":
+                "RandomForest ML model",
+
+            "predictionAt":
+                utc_now()
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI prediction failed: {error}"
+        )
+
+
+@app.get("/health")
+def health():
+    return {
+        "ok": model is not None,
+        "service":
+            "GiriDrishti AI ML Service",
+        "modelLoaded":
+            model is not None,
+        "modelFeatures":
+            getattr(
+                model,
+                "n_features_in_",
+                None
+            ),
+        "fallbackEngine":
+            False,
+        "predictionSource":
+            "trained ML model",
+        "checkedAt":
+            utc_now()
+    }
+
+
+@app.post("/predict")
+def predict(features: Features):
+    return predict_one(features)
+
+
+@app.post("/predict-batch")
+def predict_batch(
+    request: BatchRequest
+):
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="AI model is not loaded"
+        )
+
+    if len(request.items) > 500:
+        raise HTTPException(
+            status_code=400,
+            detail="Maximum batch size is 500"
+        )
+
+    results = []
+
+    for item in request.items:
+        results.append(
+            predict_one(item)
+        )
+
+    return {
+        "count":
+            len(results),
+        "results":
+            results,
+        "predictionAt":
+            utc_now()
+    }
