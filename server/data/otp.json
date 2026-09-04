@@ -1,0 +1,11 @@
+[
+  {
+    "email": "nethetiramesh13@gmail.com",
+    "name": "Ramesh",
+    "passwordHash": "49e60a7c53c51ba018595353811cefaeb20b5a27d2567fdce469cb1e77fc2312",
+    "otpHash": "637c0a6918f9352ab71a83515b5cad882a88ed5bbd9d7f3812cc418dc37b013b",
+    "attempts": 0,
+    "createdAt": "2026-09-04T04:08:41.044Z",
+    "expiresAt": "2026-09-04T04:18:41.045Z"
+  }
+]

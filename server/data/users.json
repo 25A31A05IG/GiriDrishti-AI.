@@ -1,0 +1,26 @@
+[
+  {
+    "id": "admin-1",
+    "name": "Ramesh Netheti",
+    "email": "ramesh@giridrishti.ai",
+    "passwordHash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "verified": true,
+    "createdAt": "2026-09-04T16:33:30.240Z"
+  },
+  {
+    "id": "user-1788540060064",
+    "name": "Ramesh",
+    "email": "nethetiramesh13@gmail.com",
+    "passwordHash": "49e60a7c53c51ba018595353811cefaeb20b5a27d2567fdce469cb1e77fc2312",
+    "verified": true,
+    "createdAt": "2026-09-04T16:41:00.064Z"
+  },
+  {
+    "id": "user-1788540547247-tjex",
+    "name": "Rameshnetheti2008",
+    "email": "rameshnetheti2008@gmail.com",
+    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "verified": true,
+    "createdAt": "2026-09-04T16:49:07.248Z"
+  }
+]

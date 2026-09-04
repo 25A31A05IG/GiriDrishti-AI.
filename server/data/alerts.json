@@ -1,0 +1,14 @@
+[
+  {
+    "id": "LIVE-25.8-95.25-HIGH",
+    "locationId": "LIVE-25.8-95.25",
+    "location": "ကယ်စု",
+    "lat": 25.8,
+    "lng": 95.25,
+    "riskLevel": "HIGH",
+    "riskScore": 71,
+    "message": "GiriDrishti AI ALERT. HIGH landslide risk detected at ကယ်စု. Risk score 71 percent. Rainfall 53.3 mm in the last 24 hours. Soil moisture 38.7 percent. Please follow local authority instructions and avoid unsafe slopes.",
+    "delivery": [],
+    "createdAt": "2026-09-01T15:10:29.756Z"
+  }
+]
