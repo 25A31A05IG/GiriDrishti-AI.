@@ -14,7 +14,8 @@ import {
   ArrowRight,
   PlayCircle,
   Users,
-  Navigation
+  Navigation,
+  ShieldCheck
 } from 'lucide-react';
 import { API, riskClass } from '../App';
 
@@ -42,7 +43,6 @@ export default function Alerts({ onSelectLocation }) {
     }
   };
 
-  // Requirement 1: Simulate a problem on demand
   const handleSimulateProblem = async (stationId) => {
     setSimulatingId(stationId);
     try {
@@ -136,7 +136,6 @@ export default function Alerts({ onSelectLocation }) {
         {alerts.map(alert => {
           const isCritical = alert.riskLevel === 'CRITICAL';
           
-          // Fallback calculations for enhancements if backend property is pending
           const impactRadius = alert.impactRadiusKm || Number((2.0 + (alert.riskScore / 10) + (alert.slope / 8)).toFixed(1));
           const affectedPop = alert.estimatedPopulationAffected || Math.round(Math.PI * (impactRadius ** 2) * 160);
           const notifiedCount = alert.peopleAlertedCount || Math.round(affectedPop * 0.9);
@@ -184,7 +183,7 @@ export default function Alerts({ onSelectLocation }) {
                   <button 
                     className="primary"
                     style={{ fontSize: 12, padding: '7px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    onClick={() => onSelectLocation({ lat: alert.lat, lng: alert.lng, ...alert })}
+                    onClick={() => onSelectLocation(alert)}
                   >
                     Locate on Map <ArrowRight size={14} />
                   </button>
@@ -195,7 +194,6 @@ export default function Alerts({ onSelectLocation }) {
                 {alert.message}
               </p>
 
-              {/* Physical Readings Badges */}
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', background: '#0f172a', padding: '10px 14px', borderRadius: 8, fontSize: 12, color: '#94a3b8' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <CloudRain size={14} color="#38bdf8" /> 24h Rain: <b style={{ color: '#f8fafc' }}>{alert.accumulated24hRain ?? 0} mm</b>
@@ -208,7 +206,6 @@ export default function Alerts({ onSelectLocation }) {
                 </span>
               </div>
 
-              {/* Requirement 2 & 3: Impact Radius & Population Broadcast Simulation */}
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', background: '#334155', padding: '10px 14px', borderRadius: 8, fontSize: 12, color: '#cbd5e1', marginTop: 10 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <AlertTriangle size={14} color="#f87171" /> Impact Radius: <b style={{ color: '#f8fafc' }}>{impactRadius} km</b>
@@ -221,7 +218,6 @@ export default function Alerts({ onSelectLocation }) {
                 </span>
               </div>
 
-              {/* Requirement 4: Safe Shelter Route Guidance */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12, color: '#60a5fa', background: '#0f172a', padding: '8px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>
                 <Navigation size={15} color="#38bdf8" />
                 <span><b>Safe Evacuation Route:</b> Head toward <b>{safeShelterName}</b> ({shelterDist} km away via accessible ridge corridor)</span>
