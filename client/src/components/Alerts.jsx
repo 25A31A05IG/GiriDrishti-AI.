@@ -19,6 +19,31 @@ import {
 } from 'lucide-react';
 import { API, riskClass } from '../App';
 
+// Emergency buzzer tone generator
+export const playEmergencyAlarm = () => {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.4);
+
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.5);
+  } catch (err) {
+    console.warn('AudioContext blocked or not supported:', err);
+  }
+};
+
 export default function Alerts({ onSelectLocation }) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +58,15 @@ export default function Alerts({ onSelectLocation }) {
       const res = await fetch(`${cleanApi}/alerts`);
       if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to query active alerts`);
       const data = await res.json();
-      setAlerts(Array.isArray(data) ? data : []);
+      const parsedAlerts = Array.isArray(data) ? data : [];
+      setAlerts(parsedAlerts);
+
+      // Trigger speaker buzz notification if any active HIGH or CRITICAL alert exists
+      const hasCriticalOrHigh = parsedAlerts.some(item => item.riskLevel === 'CRITICAL' || item.riskLevel === 'HIGH');
+      if (hasCriticalOrHigh) {
+        playEmergencyAlarm();
+      }
+
       setError('');
     } catch (err) {
       setError(err.message);
