@@ -15,11 +15,27 @@ import {
   PlayCircle,
   Users,
   Navigation,
-  ShieldCheck
+  ShieldCheck,
+  Volume2
 } from 'lucide-react';
 import { API, riskClass } from '../App';
 
-// Emergency buzzer tone generator
+// Speech synthesis and audio alert generator
+export const speakEmergencyAlert = (text) => {
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); // Stop any previous speech
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.1;
+      utterance.volume = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  } catch (err) {
+    console.warn('Speech synthesis failed:', err);
+  }
+};
+
 export const playEmergencyAlarm = () => {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -40,7 +56,7 @@ export const playEmergencyAlarm = () => {
     osc.start();
     osc.stop(audioCtx.currentTime + 0.5);
   } catch (err) {
-    console.warn('AudioContext blocked or not supported:', err);
+    console.warn('AudioContext blocked:', err);
   }
 };
 
@@ -61,10 +77,16 @@ export default function Alerts({ onSelectLocation }) {
       const parsedAlerts = Array.isArray(data) ? data : [];
       setAlerts(parsedAlerts);
 
-      // Trigger speaker buzz notification if any active HIGH or CRITICAL alert exists
-      const hasCriticalOrHigh = parsedAlerts.some(item => item.riskLevel === 'CRITICAL' || item.riskLevel === 'HIGH');
-      if (hasCriticalOrHigh) {
+      // Check for high or critical threats and trigger sound + speech announcement
+      const severeAlert = parsedAlerts.find(item => item.riskLevel === 'CRITICAL' || item.riskLevel === 'HIGH');
+      if (severeAlert) {
         playEmergencyAlarm();
+        const impactRadius = severeAlert.impactRadiusKm || 5.2;
+        const affectedPop = severeAlert.estimatedPopulationAffected || 3500;
+        const shelterName = severeAlert.safeShelter?.shelterName || "Safe Community Relief Camp";
+        
+        const announcement = `Emergency Alert! High landslide risk detected in ${severeAlert.name}. Impact radius is ${impactRadius} kilometers, affecting approximately ${affectedPop} residents. Evacuate immediately toward ${shelterName}.`;
+        speakEmergencyAlert(announcement);
       }
 
       setError('');
@@ -160,7 +182,7 @@ export default function Alerts({ onSelectLocation }) {
           <CheckCircle2 size={48} color="#10b981" style={{ margin: '0 auto 12px auto' }} />
           <h3 style={{ margin: 0, color: '#f8fafc' }}>All Monitored Sectors Stable</h3>
           <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: 13 }}>
-            No telemetry stations currently exceed the HIGH or CRITICAL threshold. Click <b>"Simulate Crisis"</b> above to test system response.
+            No telemetry stations currently exceed the HIGH or CRITICAL threshold. Click <b>"Simulate Crisis"</b> above to trigger the audio broadcast and on-screen metrics.
           </p>
         </div>
       )}
@@ -193,11 +215,9 @@ export default function Alerts({ onSelectLocation }) {
                     <span className={`riskPill ${riskClass(alert.riskLevel)}`} style={{ fontWeight: 800, fontSize: 11 }}>
                       {alert.riskLevel} &bull; {Number(alert.riskScore).toFixed(1)}%
                     </span>
-                    {alert.scoreDelta !== 0 && alert.scoreDelta !== undefined && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: alert.scoreDelta > 0 ? '#ef4444' : '#10b981' }}>
-                        {alert.scoreDelta > 0 ? `+${alert.scoreDelta}%` : `${alert.scoreDelta}%`} past 1m
-                      </span>
-                    )}
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Volume2 size={13} /> Audio Broadcast Active
+                    </span>
                     <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={12} /> {alert.createdAt ? new Date(alert.createdAt).toLocaleTimeString() : 'Live'}
                     </span>
@@ -212,15 +232,25 @@ export default function Alerts({ onSelectLocation }) {
                   </div>
                 </div>
 
-                {onSelectLocation && (
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button 
-                    className="primary"
-                    style={{ fontSize: 12, padding: '7px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                    onClick={() => onSelectLocation(alert)}
+                    className="secondary"
+                    style={{ fontSize: 12, padding: '7px 12px', cursor: 'pointer', background: '#0284c7', color: '#fff', border: 'none', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}
+                    onClick={() => speakEmergencyAlert(`Emergency Alert! High landslide risk in ${alert.name}. Impact radius is ${impactRadius} kilometers, affecting ${affectedPop} residents. Evacuate toward ${safeShelterName}.`)}
                   >
-                    Locate on Map <ArrowRight size={14} />
+                    <Volume2 size={14} /> Replay Announcement
                   </button>
-                )}
+
+                  {onSelectLocation && (
+                    <button 
+                      className="primary"
+                      style={{ fontSize: 12, padding: '7px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                      onClick={() => onSelectLocation(alert)}
+                    >
+                      Locate on Map <ArrowRight size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <p style={{ margin: '12px 0 10px 0', fontSize: 13, color: '#cbd5e1', lineHeight: 1.5 }}>
@@ -239,6 +269,7 @@ export default function Alerts({ onSelectLocation }) {
                 </span>
               </div>
 
+              {/* On-Screen Impact & Population Metrics */}
               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', background: '#334155', padding: '10px 14px', borderRadius: 8, fontSize: 12, color: '#cbd5e1', marginTop: 10 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <AlertTriangle size={14} color="#f87171" /> Impact Radius: <b style={{ color: '#f8fafc' }}>{impactRadius} km</b>
@@ -247,10 +278,11 @@ export default function Alerts({ onSelectLocation }) {
                   <Users size={14} color="#38bdf8" /> Population Affected: <b style={{ color: '#f8fafc' }}>~{affectedPop.toLocaleString()} residents</b>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#4ade80' }}>
-                  <ShieldCheck size={14} /> {notifiedCount.toLocaleString()} People Alerted via SMS/Sirens
+                  <ShieldCheck size={14} /> {notifiedCount.toLocaleString()} People Notified via Speaker/SMS
                 </span>
               </div>
 
+              {/* On-Screen Safe Route Guidance */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12, color: '#60a5fa', background: '#0f172a', padding: '8px 12px', borderRadius: 6, border: '1px solid #1e293b' }}>
                 <Navigation size={15} color="#38bdf8" />
                 <span><b>Safe Evacuation Route:</b> Head toward <b>{safeShelterName}</b> ({shelterDist} km away via accessible ridge corridor)</span>
