@@ -17,20 +17,46 @@ import {
   Navigation,
   ShieldCheck,
   Volume2,
-  Hourglass
+  Hourglass,
+  BellRing
 } from 'lucide-react';
 import { API, riskClass } from '../App';
+
+// Request Browser Push Notification Permission on Load
+export const requestNotificationPermission = () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+};
+
+// Trigger Browser Desktop Push Notification
+export const sendBrowserNotification = (title, body) => {
+  try {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            new Notification(title, { body });
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Browser notification error:', err);
+  }
+};
 
 // Native Language Emergency Speech Announcement
 export const speakNativeEmergencyAlert = (areaName, timeWindow, shelterName) => {
   try {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      // Native language broadcast string (Hindi / Regional context)
       const nativeMessage = `चेतावनी! ${areaName} क्षेत्र में अत्यधिक भूस्खलन का गंभीर खतरा है। यह खतरा ${timeWindow} के दौरान हो सकता है। कृपया तुरंत सुरक्षित आश्रय स्थल ${shelterName} की ओर प्रस्थान करें।`;
       
       const utterance = new SpeechSynthesisUtterance(nativeMessage);
-      utterance.lang = 'hi-IN'; // Configured for Indian regional speech synthesis engine
+      utterance.lang = 'hi-IN';
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
@@ -51,7 +77,6 @@ export const playEmergencySiren = () => {
     osc.type = 'sine';
     const now = audioCtx.currentTime;
 
-    // Dual-sweep siren frequency modulation pattern
     osc.frequency.setValueAtTime(450, now);
     osc.frequency.linearRampToValueAtTime(850, now + 0.5);
     osc.frequency.linearRampToValueAtTime(450, now + 1.0);
@@ -88,12 +113,18 @@ export default function Alerts({ onSelectLocation }) {
       const parsedAlerts = Array.isArray(data) ? data : [];
       setAlerts(parsedAlerts);
 
-      // Trigger siren and native language voice alert for severe conditions
+      // Trigger siren, browser notification, and native voice alert for severe conditions
       const severeAlert = parsedAlerts.find(item => item.riskLevel === 'CRITICAL' || item.riskLevel === 'HIGH');
       if (severeAlert) {
         playEmergencySiren();
         const timeWindow = severeAlert.riskLevel === 'CRITICAL' ? 'अगले 1 से 3 घंटे' : 'अगले 6 से 12 घंटे';
         const shelterName = severeAlert.safeShelter?.shelterName || "सुरक्षित राहत शिविर";
+        
+        sendBrowserNotification(
+          `🚨 ${severeAlert.riskLevel} LANDSLIDE ALERT: ${severeAlert.name}`,
+          `High risk window: ${timeWindow}. Evacuate immediately toward ${shelterName}.`
+        );
+
         speakNativeEmergencyAlert(severeAlert.name, timeWindow, shelterName);
       }
 
@@ -126,6 +157,7 @@ export default function Alerts({ onSelectLocation }) {
   };
 
   useEffect(() => {
+    requestNotificationPermission();
     fetchDynamicAlerts();
     const interval = setInterval(fetchDynamicAlerts, 60000);
     return () => clearInterval(interval);
@@ -136,10 +168,10 @@ export default function Alerts({ onSelectLocation }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: '#fbfdff', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <ShieldAlert size={28} color="#ef4444" /> Live AI Alerts & Native Siren Broadcast
+            <ShieldAlert size={28} color="#ef4444" /> Live AI Alerts & Push Dispatch
           </h1>
           <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: 13 }}>
-            Real-time temporal risk windows, impact radius, population metrics, and automated native emergency dispatch.
+            Real-time browser notifications, temporal risk windows, native audio siren, and evacuation routes.
           </p>
         </div>
 
@@ -190,7 +222,7 @@ export default function Alerts({ onSelectLocation }) {
           <CheckCircle2 size={48} color="#10b981" style={{ margin: '0 auto 12px auto' }} />
           <h3 style={{ margin: 0, color: '#f8fafc' }}>All Monitored Sectors Stable</h3>
           <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: 13 }}>
-            No telemetry stations currently exceed the HIGH or CRITICAL threshold. Click <b>"Simulate Crisis"</b> above to trigger the acoustic siren and native audio broadcast.
+            No telemetry stations currently exceed the HIGH or CRITICAL threshold. Click <b>"Simulate Crisis"</b> above to trigger the push notification, acoustic siren, and native voice broadcast.
           </p>
         </div>
       )}
@@ -205,7 +237,6 @@ export default function Alerts({ onSelectLocation }) {
           const safeShelterName = alert.safeShelter?.shelterName || "Cherrapunji Community Safe Ground & Relief Camp";
           const shelterDist = alert.safeShelter?.distanceKm || 3.8;
           
-          // Temporal risk period estimation
           const timeWindow = isCritical ? 'Next 1 to 3 Hours (Imminent Failure Window)' : 'Next 6 to 12 Hours (Heightened Instability)';
 
           return (
@@ -227,7 +258,7 @@ export default function Alerts({ onSelectLocation }) {
                       {alert.riskLevel} &bull; {Number(alert.riskScore).toFixed(1)}%
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Volume2 size={13} /> Native Siren Active
+                      <BellRing size={13} /> Push & Siren Broadcast Active
                     </span>
                     <span style={{ fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Clock size={12} /> {alert.createdAt ? new Date(alert.createdAt).toLocaleTimeString() : 'Live'}
@@ -249,10 +280,11 @@ export default function Alerts({ onSelectLocation }) {
                     style={{ fontSize: 12, padding: '7px 12px', cursor: 'pointer', background: '#b91c1c', color: '#fff', border: 'none', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 4 }}
                     onClick={() => {
                       playEmergencySiren();
+                      sendBrowserNotification(`🚨 ${alert.riskLevel} EMERGENCY: ${alert.name}`, `Evacuate toward ${safeShelterName}.`);
                       speakNativeEmergencyAlert(alert.name, isCritical ? 'अगले 1 से 3 घंटे' : 'अगले 6 से 12 घंटे', safeShelterName);
                     }}
                   >
-                    <Volume2 size={14} /> Replay Native Siren
+                    <Volume2 size={14} /> Replay Push & Siren
                   </button>
 
                   {onSelectLocation && (
@@ -271,7 +303,6 @@ export default function Alerts({ onSelectLocation }) {
                 {alert.message}
               </p>
 
-              {/* Temporal Risk Window Estimation Card */}
               <div style={{ background: '#451a03', border: '1px solid #fb923c', padding: '10px 14px', borderRadius: 8, marginBottom: 10, fontSize: 12, color: '#fed7aa', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Hourglass size={16} color="#fb923c" />
                 <span><b>Estimated Hazard Timeline Window:</b> <span style={{ color: '#fff', fontWeight: 700 }}>{timeWindow}</span> based on current soil water retention rates.</span>
@@ -297,7 +328,7 @@ export default function Alerts({ onSelectLocation }) {
                   <Users size={14} color="#38bdf8" /> Population Affected: <b style={{ color: '#f8fafc' }}>~{affectedPop.toLocaleString()} residents</b>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#4ade80' }}>
-                  <ShieldCheck size={14} /> {notifiedCount.toLocaleString()} People Notified via Siren/SMS
+                  <ShieldCheck size={14} /> {notifiedCount.toLocaleString()} People Notified via Push & Siren
                 </span>
               </div>
 
