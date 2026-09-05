@@ -4,7 +4,10 @@ import {
   CloudRain,
   Navigation,
   Gauge,
-  Mountain
+  Mountain,
+  AlertTriangle,
+  Users,
+  ShieldCheck
 } from 'lucide-react';
 
 import Feature from './Feature';
@@ -64,6 +67,10 @@ export default function Detail({
     Number.isFinite(
       Number(location.elevation)
     );
+
+  const impactRadius = location.impactRadiusKm;
+  const affectedPopulation = location.estimatedPopulationAffected;
+  const safeShelter = location.safeShelter;
 
   return (
     <div className="overlay">
@@ -135,6 +142,38 @@ export default function Detail({
             landslide risk score
           </small>
         </div>
+
+        {/* Dynamic Density-Based Population & Impact Radius Section */}
+        {(impactRadius || affectedPopulation) && (
+          <div style={{ background: '#334155', padding: '12px 14px', borderRadius: 10, marginBottom: 16, color: '#f8fafc', fontSize: 13 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6, color: '#f87171' }}>
+              <AlertTriangle size={15} /> Impact & Density Population Estimate
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <span style={{ fontSize: 11, opacity: 0.8 }}>Impact Radius:</span><br />
+                <b>{impactRadius ? `${impactRadius} km` : '--'}</b>
+              </div>
+              <div>
+                <span style={{ fontSize: 11, opacity: 0.8 }}>Affected Residents:</span><br />
+                <b>{affectedPopulation ? `~${affectedPopulation.toLocaleString()}` : '--'}</b>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Nearest Safe Evacuation Route Section */}
+        {safeShelter && (
+          <div style={{ background: '#064e3b', border: '1px solid #059669', padding: '12px 14px', borderRadius: 10, marginBottom: 16, color: '#ecfdf5', fontSize: 13 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, color: '#34d399' }}>
+              <ShieldCheck size={16} /> Nearest Safe Evacuation Shelter
+            </div>
+            <div>
+              <div><b>{safeShelter.shelterName}</b></div>
+              <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>Distance: <b>{safeShelter.distanceKm} km away</b></div>
+            </div>
+          </div>
+        )}
 
         <div className="featureGrid">
 
