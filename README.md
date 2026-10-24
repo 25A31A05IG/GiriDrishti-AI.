@@ -14,14 +14,6 @@
 [![Database](https://img.shields.io/badge/Database-MongoDB-darkgreen?style=for-the-badge\&logo=mongodb)](https://www.mongodb.com/)
 [![Python](https://img.shields.io/badge/Python-3.11-yellow?style=for-the-badge\&logo=python)](https://www.python.org/)
 
----
-
-## 🌐 Live Demo
-
-**GiriDrishti AI:**
-https://giri-drishti-ai-9udr.vercel.app/
-
----
 
 ## 📌 Overview
 
